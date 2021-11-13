@@ -69,14 +69,18 @@ app.post('/rest/V1/inventory/source-items', function (req, res) {
             const itemsBySku = _.groupBy(inventoryItems, 'sku')
             inventoryItems = null
 
-            const isNotRemoveQuantity = (item) => !(
-                typeof item.quantity === 'number' &&
-                _.some(itemsBySku[item.sku], cachedItem =>
-                    cachedItem.source_code === item.source_code &&
-                    cachedItem.quantity > item.quantity
-                )
-            )
-            req.body.sourceItems = sourceItems.filter(isNotRemoveQuantity);
+            req.body.sourceItems = sourceItems.filter(function (item) {
+                if (typeof item.quantity === 'number') {
+                    const { sku, source_code } = item
+                    const cachedItem = _.find(itemsBySku[sku], { source_code })
+
+                    if (cachedItem && cachedItem.quantity >= item.quantity) {
+                        item.quantity = cachedItem.quantity
+                        return item.status === 0
+                    }
+                }
+                return true
+            })
 
             if (req.body.sourceItems.length === 0) {
                 res.json([])
