@@ -20,10 +20,22 @@ function addInventoryItems (data) {
     }
 }
 
+// Matches space encoded as plus and latin1 chars (å, ä, ö)
+const doubleEncoded = /%2B|(%25[0-9a-f]{2}){2}/g
+
+const decodeSku = sku => sku.replace(doubleEncoded, decodeURIComponent)
+
+const skuQuery = /\[field\]=sku&searchCriteria[^=]*\[value\]=([^&]*)/
+
+const skuReplacer = (m, value) => m.replace(
+    '[value]=' + value,
+    '[value]=' + value.split('%2C').map(decodeSku).join()
+)
+
 app.get('/rest/V1/inventory/source-items', function (req, res) {
     http.get({
         port: 8080,
-        path: '/index.php' + req.url,
+        path: '/index.php' + req.url.replace(skuQuery, skuReplacer),
         headers: _.pick(req.headers, 'accept', 'authorization')
     }, function (response) {
         res.set(response.headers)
