@@ -103,6 +103,26 @@ app.post('/rest/V1/inventory/source-items', function (req, res) {
     request.end(postData);
 })
 
+const API_TOKEN = process.env.API_TOKEN
+
+app.get('/rest/V1/inventory/get-product-salable-quantity/:sku/:stockId', function (req, res) {
+    const headers = _.pick(req.headers, 'accept', 'authorization')
+
+    if (!headers.authorization && API_TOKEN) {
+        headers.authorization = 'Bearer ' + API_TOKEN
+    }
+
+    http.get({
+        port: 8080,
+        path: '/index.php' + req.url,
+        headers
+    }, function (response) {
+        res.set(response.headers)
+        res.status(response.statusCode)
+        response.pipe(res)
+    })
+})
+
 const server = app.listen(port)
 
 process.on('SIGINT', function () {
