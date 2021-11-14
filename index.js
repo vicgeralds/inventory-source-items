@@ -104,12 +104,16 @@ app.post('/rest/V1/inventory/source-items', function (req, res) {
 })
 
 const API_TOKEN = process.env.API_TOKEN
+const STOCK_ID = process.env.STOCK_ID || 1
 
-app.get('/rest/V1/inventory/get-product-salable-quantity/:sku/:stockId', function (req, res) {
+app.get('/rest/V1/inventory/get-product-salable-quantity/:sku/:stockId?', function (req, res) {
     const headers = _.pick(req.headers, 'accept', 'authorization')
 
     if (!headers.authorization && API_TOKEN) {
         headers.authorization = 'Bearer ' + API_TOKEN
+    }
+    if (!req.params.stockId) {
+        req.url += '/' + STOCK_ID
     }
 
     http.get({
