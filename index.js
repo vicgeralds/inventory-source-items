@@ -113,7 +113,7 @@ app.get('/rest/V1/inventory/get-product-salable-quantity/:sku/:stockId?', functi
         headers.authorization = 'Bearer ' + API_TOKEN
     }
     if (!req.params.stockId) {
-        req.url += '/' + STOCK_ID
+        req.url = req.path + '/' + STOCK_ID
     }
 
     http.get({
