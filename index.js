@@ -60,7 +60,7 @@ app.get('/rest/V1/inventory/source-items', function (req, res) {
     })
 })
 
-app.post('/rest/V1/inventory/source-items', function (req, res) {
+app.post('/rest/V1/inventory/source-items', async function (req, res, next) {
     let postData;
 
     if (req.body != null) {
@@ -69,15 +69,38 @@ app.post('/rest/V1/inventory/source-items', function (req, res) {
             const itemsBySku = _.groupBy(inventoryItems, 'sku')
             inventoryItems = null
 
-            req.body.sourceItems = sourceItems.filter(function (item) {
+            function findCachedItem (item) {
                 if (typeof item.quantity === 'number') {
                     const { sku, source_code } = item
-                    const cachedItem = _.find(itemsBySku[sku], { source_code })
+                    return _.find(itemsBySku[sku], { source_code })
+                }
+            }
 
-                    if (cachedItem && cachedItem.quantity >= item.quantity) {
-                        item.quantity = cachedItem.quantity
-                        return item.status === 0
+            try {
+                const headers = _.pick(req.headers, 'accept', 'authorization')
+                await Promise.all(
+                    sourceItems.map(async function (item) {
+                        item = findCachedItem(item)
+                        if (item) {
+                            item.salableQuantity = await getProductSalableQuantity(item.sku, headers)
+                        }
+                    })
+                )
+            } catch (err) {
+                next(err)
+            }
+
+            req.body.sourceItems = sourceItems.filter(function (item) {
+                const cachedItem = findCachedItem(item)
+
+                if (cachedItem && cachedItem.quantity >= item.quantity) {
+                    const salableQuantity = cachedItem.salableQuantity
+                    if (item.quantity < salableQuantity) {
+                        item.quantity += cachedItem.quantity - salableQuantity
+                        return true
                     }
+                    item.quantity = cachedItem.quantity
+                    return item.status === 0
                 }
                 return true
             })
@@ -126,6 +149,45 @@ app.get('/rest/V1/inventory/get-product-salable-quantity/:sku/:stockId?', functi
         response.pipe(res)
     })
 })
+
+function getProductSalableQuantity (sku, headers) {
+    return new Promise(function (resolve, reject) {
+        const path = '/index.php/rest/V1/inventory/get-product-salable-quantity/' +
+            encodeURIComponent(sku) + '/' + STOCK_ID;
+
+        http.get({ port: 8080, path, headers }, function (response) {
+            if (response.statusCode === 200) {
+                resolve(getJsonResponseBody(response))
+            } else {
+                response.resume()
+                resolve(null)
+            }
+        }).on('error', reject)
+    })
+}
+
+function getJsonResponseBody (response) {
+    return getResponseBody(response)
+        .then(function (data) {
+            if (response.complete) {
+                return JSON.parse(data)
+            }
+        })
+}
+
+function getResponseBody (response) {
+    return new Promise(function (resolve, reject) {
+        response.setEncoding('utf8')
+        const chunks = []
+        response.on('data', function (chunk) {
+            chunks.push(chunk)
+        })
+        response.on('end', function () {
+            resolve(chunks.join(''))
+        })
+        response.on('error', reject)
+    })
+}
 
 const server = app.listen(port)
 
