@@ -5,7 +5,7 @@ Magento REST API. It handles inventory quantity updates made by Ongoing WMS
 integration and prevents unwanted updates.
 
 It ignores updates that would decrease the quantity for source items (before
-the order is shipped), because Magento already makes reservations pending
+the order is shipped), because Magento already makes reservations for pending
 orders.
 
 REST endpoints handled:
