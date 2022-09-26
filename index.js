@@ -93,6 +93,9 @@ app.post('/rest/V1/inventory/source-items', async function (req, res, next) {
             req.body.sourceItems = sourceItems.filter(function (item) {
                 const cachedItem = findCachedItem(item)
 
+                if (item.quantity < 0) {
+                    item.quantity = 0;
+                }
                 if (cachedItem && cachedItem.quantity >= item.quantity) {
                     const salableQuantity = cachedItem.salableQuantity
                     if (item.quantity < salableQuantity) {
